@@ -1,0 +1,243 @@
+-- My Pet Rock Automation GUI
+-- Constants
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local StarterGui = game:GetService("StarterGui")
+
+-- Replace with your game's RemoteEvent name (e.g., found in ReplicatedStorage)
+local GameEvent = ReplicatedStorage:FindFirstChild("RockEvent") or ReplicatedStorage:WaitForChild("RockEvent", 5)
+
+-- GUI Setup
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "PetRockGui"
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
+
+-- Main Frame (Red with neon effect)
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Red
+mainFrame.BorderSizePixel = 2
+mainFrame.BorderColor3 = Color3.fromRGB(0, 255, 255) -- Neon cyan border
+mainFrame.Parent = screenGui
+
+-- Add neon effect (UIStroke for glow)
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Thickness = 2
+uiStroke.Color = Color3.fromRGB(0, 255, 255)
+uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+uiStroke.Parent = mainFrame
+
+-- Background Frame (Blue starry background)
+local backgroundFrame = Instance.new("Frame")
+backgroundFrame.Size = UDim2.new(1, 0, 1, 0)
+backgroundFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 50) -- Dark blue
+backgroundFrame.Parent = screenGui
+backgroundFrame.ZIndex = -1 -- Behind main frame
+
+-- Add starry effect with ImageLabel
+local starsImage = Instance.new("ImageLabel")
+starsImage.Size = UDim2.new(1, 0, 1, 0)
+starsImage.BackgroundTransparency = 1
+starsImage.Image = "rbxassetid://5670804538" -- Replace with a starry image ID (e.g., upload to Roblox)
+starsImage.ImageTransparency = 0.3
+starsImage.Parent = backgroundFrame
+
+-- Title Label
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 50)
+titleLabel.Position = UDim2.new(0, 0, 0, 10)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "My Pet Rock Helper"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.FredokaOne
+titleLabel.Parent = mainFrame
+
+-- Add Time Button
+local addTimeButton = Instance.new("TextButton")
+addTimeButton.Size = UDim2.new(0.8, 0, 0, 50)
+addTimeButton.Position = UDim2.new(0.1, 0, 0.2, 0)
+addTimeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+addTimeButton.Text = "Add Time (10s)"
+addTimeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+addTimeButton.TextScaled = true
+addTimeButton.Font = Enum.Font.FredokaOne
+addTimeButton.Parent = mainFrame
+
+-- Steal Rock Button
+local stealRockButton = Instance.new("TextButton")
+stealRockButton.Size = UDim2.new(0.8, 0, 0, 50)
+stealRockButton.Position = UDim2.new(0.1, 0, 0.4, 0)
+stealRockButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+stealRockButton.Text = "Steal Rock (Free)"
+stealRockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+stealRockButton.TextScaled = true
+stealRockButton.Font = Enum.Font.FredokaOne
+stealRockButton.Parent = mainFrame
+
+-- Fly Button
+local flyButton = Instance.new("TextButton")
+flyButton.Size = UDim2.new(0.8, 0, 0, 50)
+flyButton.Position = UDim2.new(0.1, 0, 0.6, 0)
+flyButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+flyButton.Text = "Toggle Fly"
+flyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyButton.TextScaled = true
+flyButton.Font = Enum.Font.FredokaOne
+flyButton.Parent = mainFrame
+
+-- Function to add time to rock
+local function addTime()
+    if not GameEvent then
+        warn("RockEvent not found!")
+        return
+    end
+    -- Example: Fire RemoteEvent to add 10 seconds
+    local args = {
+        [1] = "addTime", -- Replace with actual event name
+        [2] = 10 -- Amount of time to add (in seconds)
+    }
+    GameEvent:FireServer(unpack(args))
+    print("Requested to add 10 seconds to rock")
+    task.wait(0.1) -- Small delay to avoid spam
+end
+
+-- Function to steal a rock for free
+local function stealRock()
+    if not GameEvent then
+        warn("RockEvent not found!")
+        return
+    end
+    -- Example: Fire RemoteEvent to steal a rock, bypassing cost
+    local targetPlayer = Players:GetPlayers()[2] -- Steal from the first non-local player
+    if targetPlayer and targetPlayer ~= LocalPlayer then
+        local args = {
+            [1] = "stealRock", -- Replace with actual event name
+            [2] = targetPlayer.UserId, -- Target player's UserId
+            [3] = 0 -- Cost (set to 0 for free)
+        }
+        GameEvent:FireServer(unpack(args))
+        print("Attempted to steal rock from " .. targetPlayer.Name)
+        task.wait(0.1)
+    else
+        warn("No valid target player found to steal from!")
+    end
+end
+
+-- Flight variables
+local isFlying = false
+local bodyVelocity = nil
+local bodyGyro = nil
+local FLY_SPEED = 50 -- Adjust fly speed
+local FLY_MAX_FORCE = Vector3.new(4000, 4000, 4000)
+
+-- Function to start flying
+local function startFlying()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        warn("Character or HumanoidRootPart not found!")
+        return
+    end
+    local rootPart = LocalPlayer.Character.HumanoidRootPart
+    local humanoid = LocalPlayer.Character.Humanoid
+
+    -- Create BodyVelocity for movement
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = FLY_MAX_FORCE
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = rootPart
+
+    -- Create BodyGyro for rotation
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.MaxTorque = Vector3.new(4000, 4000, 4000)
+    bodyGyro.CFrame = rootPart.CFrame
+    bodyGyro.Parent = rootPart
+
+    -- Disable gravity
+    humanoid.PlatformStand = true
+    isFlying = true
+    flyButton.Text = "Stop Flying"
+
+    -- Update flight movement
+    while isFlying and rootPart and humanoid do
+        local moveDirection = Vector3.new(0, 0, 0)
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveDirection = moveDirection + Vector3.new(0, 0, -1)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveDirection = moveDirection + Vector3.new(0, 0, 1)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveDirection = moveDirection + Vector3.new(-1, 0, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveDirection = moveDirection + Vector3.new(1, 0, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveDirection = moveDirection + Vector3.new(0, 1, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            moveDirection = moveDirection + Vector3.new(0, -1, 0)
+        end
+
+        -- Apply movement
+        bodyVelocity.Velocity = (rootPart.CFrame * CFrame.new(moveDirection * FLY_SPEED)).p - rootPart.Position
+        bodyGyro.CFrame = rootPart.CFrame
+        task.wait()
+    end
+end
+
+-- Function to stop flying
+local function stopFlying()
+    if bodyVelocity then
+        bodyVelocity:Destroy()
+        bodyVelocity = nil
+    end
+    if bodyGyro then
+        bodyGyro:Destroy()
+        bodyGyro = nil
+    end
+    if LocalPlayer.Character then
+        LocalPlayer.Character.Humanoid.PlatformStand = false
+    end
+    isFlying = false
+    flyButton.Text = "Toggle Fly"
+end
+
+-- Button connections
+addTimeButton.MouseButton1Click:Connect(function()
+    local success, err = pcall(addTime)
+    if not success then
+        warn("Error adding time: " .. err)
+    end
+end)
+
+stealRockButton.MouseButton1Click:Connect(function()
+    local success, err = pcall(stealRock)
+    if not success then
+        warn("Error stealing rock: " .. err)
+    end
+end)
+
+flyButton.MouseButton1Click:Connect(function()
+    if isFlying then
+        stopFlying()
+    else
+        local success, err = pcall(startFlying)
+        if not success then
+            warn("Error starting flight: " .. err)
+        end
+    end
+end)
+
+-- Cleanup on player death or script end
+LocalPlayer.CharacterAdded:Connect(function(character)
+    if isFlying then
+        stopFlying()
+        task.wait(1) -- Wait for character to load
+        startFlying()
+    end
+end)
